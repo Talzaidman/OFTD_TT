@@ -49,3 +49,6 @@ logs/
 # Backups
 *_backup*
 *.bak
+
+# Local helper files
+GITHUB_UPLOAD_GUIDE.md
