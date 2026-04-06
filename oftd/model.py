@@ -24,12 +24,11 @@ class SineLayer(nn.Module):
     
     def init_weights(self):
         with torch.no_grad():
-            if self.is_first:
-                self.linear.weight.uniform_(-1 / self.in_features, 
-                                            1 / self.in_features)
-            else:
-                self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0,
-                                            np.sqrt(6 / self.in_features) / self.omega_0)
+            # Theory requirement (Lemma 2, Theorem 1): Weights must follow N(0, w²)
+            w = 0.05  # Variance hyperparameter (tune as needed for your data)
+            self.linear.weight.normal_(mean=0.0, std=w)
+            if self.linear.bias is not None:
+                self.linear.bias.zero_()
         
     def forward(self, input):
         return torch.sin(self.omega_0 * self.linear(input))
@@ -108,6 +107,46 @@ class Online_CP_single_net(nn.Module):
         # Contract spatial basis with temporal factors
         return spatial_basis @ C  # (n_1, n_2, R) @ (R, t) -> (n_1, n_2, t)
     
+
+class Online_FTD_net(nn.Module):
+    """Implements theoretical OFTD from Equation 8 of the paper.
+    Tensor construction: X[i,j,k] = A[i]^T * B[j] * C[k]
+    where A, C are vectors in R^r and B is a matrix in R^{r x r}
+    """
+    def __init__(self, R=100, mid_channel=256, omega_A=1.5, omega_B=1.5, omega_C=1.5):
+        super(Online_FTD_net, self).__init__()
+        self.R = R
+
+        # f_Theta_1: outputs vector in R^r
+        self.A_net = nn.Sequential(SineLayer(1, mid_channel, is_first=True, omega_0=omega_A),
+                                   nn.Linear(mid_channel, R))
+        
+        # f_Theta_2: outputs R×R matrix (flattened to R²)
+        # Theory: f_Theta_2 must output matrix for proper contraction (Eq. 8)
+        self.B_net = nn.Sequential(SineLayer(1, mid_channel, is_first=True, omega_0=omega_B),
+                                   nn.Linear(mid_channel, R * R))
+
+        # f_Theta_3: outputs vector in R^r
+        self.C_net = nn.Sequential(SineLayer(1, mid_channel, is_first=True, omega_0=omega_C),
+                                   SineLayer(mid_channel, mid_channel, is_first=True, omega_0=omega_C),
+                                   nn.Linear(mid_channel, R))
+    
+    def forward(self, A_input, B_input, C_input):
+        """Exact implementation of Equation 8: X[i,j,k] = A[i]^T * B[j] * C[k]
+        Using einsum: 'ir,jrs,ks->ijk' contracts A(i,r), B(j,r,s), C(k,s) -> output(i,j,k)
+        """
+        A = self.A_net(A_input)  # Shape: (batch_A, R)
+        
+        B_flat = self.B_net(B_input)  # Shape: (batch_B, R²)
+        B = B_flat.view(-1, self.R, self.R)  # Reshape: (batch_B, R, R)
+        
+        C = self.C_net(C_input)  # Shape: (batch_C, R)
+        
+        # Einsum: A^T @ B @ C vectorized (match Eq. 8 exactly)
+        # i: spatial dim 1, j: spatial dim 2, k: temporal dim
+        # r,s: latent dimensions (contracted over)
+        out = torch.einsum('ir,jrs,ks->ijk', A, B, C)
+        return out
 
     
 class Online_CP_multi_net(nn.Module): 
