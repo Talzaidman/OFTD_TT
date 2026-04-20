@@ -41,10 +41,10 @@ affiney = 4
 
 Affinex = 144+64
 Affiney = 176+64
-rotate_theta = torch.zeros((5), device=0, requires_grad=True)
-Scale_factor = torch.ones((5), device=0, requires_grad=True)
-x = torch.ones((5), device=0, requires_grad=True)
-y = torch.ones((5), device=0, requires_grad=True)
+rotate_theta = torch.zeros((5), device=device, requires_grad=True)
+Scale_factor = torch.ones((5), device=device, requires_grad=True)
+x = torch.ones((5), device=device, requires_grad=True)
+y = torch.ones((5), device=device, requires_grad=True)
 params = []
 params += [rotate_theta]
 params += [Scale_factor]

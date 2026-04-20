@@ -1,0 +1,2 @@
+dataset,mode,seed,R,params,init_time_s,online_time_s,total_train_time_s,infer_time_s,avg_online_nre_train,avg_online_nre_test,final_train_nre,final_test_nre,init_loss_best,final_train_loss,final_test_loss,avg_flops_m,num_updates,final_shape
+foreman.mat,multi,42,100,1333080,8.5681,64.4764,73.0445,0.008105,0.135862,0.136817,0.136109,0.136414,8.993375,0.00903,0.00906,nan,9,"(140,170,100)"

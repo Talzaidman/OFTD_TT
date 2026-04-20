@@ -3,6 +3,17 @@
 ## Executive Summary
 The `Online_CP_single_net` model has been refactored from **Canonical Polyadic (CP) Decomposition** to **Tensor Train (TT) / Matrix Product State (MPS) Decomposition**. The refactoring maintains full pipeline compatibility while improving model capacity and expressiveness.
 
+## Update (April 19, 2026)
+
+- A separate theory-aligned FTD path has been added:
+  - `Online_FTD_net`
+  - `online_update_multi_ftd`
+  - `OFTD_FTD_demo.py`
+- Practical outcomes from current runs:
+  - FTD is promising on `foreman` (multi-aspect setup).
+  - FTD is currently unstable on `condition` in tested single-aspect settings.
+- See `oftd/experiment_results_log.md` for current reproducible numbers and commands.
+
 ---
 
 ## PRACTICAL CHANGES

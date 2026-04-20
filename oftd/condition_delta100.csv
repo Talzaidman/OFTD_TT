@@ -1,0 +1,2 @@
+dataset,mode,seed,R,params,init_time_s,online_time_s,total_train_time_s,infer_time_s,avg_online_nre_train,avg_online_nre_test,final_train_nre,final_test_nre,init_loss_best,final_train_loss,final_test_loss,avg_flops_m
+condition.mat,single,42,40,234000,0.1907,3.0024,3.1931,0.001068,1.808873,1.927153,1.406701,1.469172,45299.336545,2433.5643,2637.19966,nan
