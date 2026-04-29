@@ -1,0 +1,843 @@
+
+
+===== PAGE 1 =====
+Online Functional Tensor-Train Decomposition via
+Continual Learning for Streaming Data Completion
+Guy Ben Eliezer
+Department of Computer Science
+Tel Aviv University
+guyb3@mail.tau.ac.il
+Tal Ziedman
+Department of Computer Science
+Tel Aviv University
+second.email@edu
+Abstract
+Online tensor decompositions are powerful and proven techniques that address
+the challenges in processing high-dimensional tensor data, such as traffic flow and
+weather systems. The main aim of this work is to propose a more robust online
+tensor train decomposition (OTTD) framework, which represents a spatial-temporal
+continuous function using INRs continuity and easy adaptability for online data
+with the added compact and low representation of the Tensor-Train decomposition.
+The INRs allow for the natural characterization of continually expanding streaming
+data by simply adding new coordinates into the network. Particularly, our method
+transforms the classical online tensor decomposition algorithm into a more dynamic
+continual learning paradigm of updating the INR weights to fit the new data without
+forgetting the previous tensor knowledge in a compact manner. To this end, we
+introduce a long-tail memory replay method that adapts to the local continuity
+property of INR.
+1 Introduction
+Online tensor decomposition ( 2) is one of the foremost methods to address the streaming data
+completion problem by exploiting the potential compact structures underlying streaming data within
+an online optimization framework. However, decomposing tensor streams would lead to high
+computational costs owing to the significant growth in their volume over time. Also, dynamically
+capturing the internal latent properties of tensor streams, such as spatial-temporal continuity, poses
+difficult challenges. Novel research (1) (OFTD) created a new online learning paradigm that leverages
+INR’s in order to learn a more dynamic and easy to expand model then the original decomposition
+paramteres.
+In this work, we propose an improvement over OFTD with a better, more robust model for streaming
+data completion. OTTD represents the spatial-temporal streaming data as a continuous function
+using TT tensor decomposition parameterized by implicit neural representations (INRs) ( 34; 35),
+which map an arbitrary spatial-temporal coordinate to the corresponding tensor value through deep
+neural networks. Instead of optimizing the factor matrices of tensor decomposition, OTTD optimizes
+the learnable weights of factor INRs during online optimization, which could better explore the
+complex dynamic structure and global spatial-temporal correlations of streaming data through a deep
+functional tensor representation. OTTD allows for natural characterizations of continually expanded
+streaming data by simply adding new coordinates into the INR network during online optimization.
+Although the tensor stream is continually growing, we maintain a constant number of optimization
+parameters by keeping the network structure unchanged.
+Nevertheless, the incorporation of deep neural networks leads to the possible issue of forgetting the
+learned historical knowledge when fitting new data. Hence, to enable effective continual learning
+for processing streaming tensors using OTTD, we make a basic attempt by employing the memory
+Preprint.
+
+
+===== PAGE 2 =====
+replay method, which utilizes a part of historical data during online optimization, to avoid forgetting.
+We develop a regret bound of OTTD from the perspective of the loss (i.e., forgetting) of historical
+knowledge, which theoretically shows that the OTTD model tends to forget the knowledge that is dis-
+tant from the new tensor data due to the local continuity property of INRs. Hence we correspondingly
+design a memory buffer with a long-tail distribution (i.e., storing more data at more distant positions),
+which substantially enhances the performance for streaming data completion. Consequently, OTTD
+delivers superior performances against traditional online tensor decomposition methods, showcasing
+its strong ability for streaming data analysis.
+We summarize the main contributions of this work as follows:
+• We introduce a robust model for decomposing tensor data that is compact and is less sensitive
+to tensor rank.
+• We find a new regret bound for our novel method in order to leverage memory replay method
+• We apply OTTD to differnt data streams and compare it’s predecessor OFTD
+2 Related Work
+2.1 Online Tensor Decomposition
+Online analysis algorithms for streaming tensors have been widely developed in recent years (19; 20;
+21). The CP decomposition is one of the mostly considered methods for streaming tensor completion.
+One issue with a CP decomposition is the sensitivity for the tensor rank ( 18) and finding the rank
+of a tensor is an NP-hard problem. These online tensor methods explicitly optimize factor matrices
+of the tensor decomposition using discrete online optimization rules. Different from these methods,
+the OFTD (1) employs INRs and CP decomposition to model streaming data as a spatial-temporal
+continuous function, which allows for natural characterization of continually expanded data by adding
+new coordinates into INRs during online optimization. Our proposed OTTD uses that method with a
+more robust tensor train model that should suffer less from the tensor rank.
+2.2 Implicit Neural Representation
+In recent years, INR has attracted widespread attention for their ability to continuously and implicitly
+represent signals through neural networks Sitzmann et al. (34), Mildenhall et al. (35). Compared to
+traditional discrete representations, INR offers advantages such as memory efficiency, continuous
+trajectory modeling, and analytical computations of higher-order derivatives. Typical applications of
+INR include 3D shape and scene reconstruction Atzmon and Lipman ( 36), Jiang et al. ( 37), view
+synthesis Mildenhall et al. ( 38), solving differential equations Chen et al. ( 39), and images/video
+processing Chen et al. (40), Skorokhodov et al. (41).
+For instance, the well-known NeRF Mildenhall et al. (35) represents a scene as a continuous 5D func-
+tion and optimizes neural radiance fields to synthesize novel views. Sitzmann et al. (34) introduced
+the SIREN, which leverages periodic activation functions to achieve high-fidelity representation of
+natural signals using INR. Chen et al. (40) proposed the local implicit image function, which encodes
+images as continuous functions and enables arbitrary-resolution image reconstruction. Currently,
+INR has become an increasingly popular research direction in mainstream AI fields Zhao et al. (42),
+Shi et al. ( 43), Li et al. ( 44). To our knowledge, the proposed method should be the first work to
+incorporate INR into the online tensor decomposition framework.
+3 Proposed Method
+3.1 Preliminaries
+Definition 1 (Tensor Train Decomposition). Given an N th-order tensor X ∈R I1×I2×···×IN , its
+TT decomposition is the representation using N factor tensors {U(n)}N
+n=1 where the factor tensors
+U(1) ∈R I1×r, U(N) ∈R r×In and U(n) ∈R r×In×r. Where r is some chosen parameter. We
+representXwith the following
+Xi1,...,iN =U (1)
+i1,: ·U (2)
+:,i2,: · · ·U (N)
+:,iN
+2
+
+
+===== PAGE 3 =====
+And we denote[[{U (n)}N
+n=1]]as theNorder tensor where each element is of the form above.
+Definition 2 (Streaming tensor sequence).A sequence of N th-order tensors {Xt} is called a
+streaming tensor sequence if for any t∈Z +, Xt−1 ⊆ X t. The t grows with time, and Xt is called the
+snapshot tensor taken at timet.
+Definition 3 (Temporal tube).Given two successive tensors Xt−1 ∈R I t−1
+1 ×···×I t−1
+N and Xt ∈
+RI t
+1×···×I t
+N derived from a streaming tensor sequence {Xt}, the coming data (i.e., temporal tube) at
+timetcan be represented byY t =X t \ Xt−1 which has the same size asX t, with entries given by:
+(Yt)(i1,...,iN) =
+(Xt)(i1,...,iN) if∃ns.t.I t−1
+n < i n ≤I t
+n
+0otherwise.
+3.2 Problem Formulation
+Given a streaming tensor sequence {Xt} with missing entries, we aim to recover the missing data in
+the current snapshot Xt. Since Xt−1 ⊆ X t, and we have handled Xt−1 in previous time steps, the
+problem is equivalent to completing the elements in Yt =X t \ Xt−1. The optimization problem at
+timetis typically formulated as:
+min
+{U (n)
+t }
+∥Pt ⊗(Y t −[[{U (n)
+t }N
+n=1]])∥F (1)
+where {U(n)
+t } denotes the set of tensor factors,Pt is a binary tensor representing missing and observed
+entries of Yt. Most tensor method relay on some regularization term, such as the total variation (46) .
+Instead we use the spatial-temporal smoothness of data through the implicit smoothness of INRs (see
+Lemma 1).
+3.3 Online Functional Tensor Decomposition
+In this section, we give the detailed formulation of the proposed online functional tensor decomposi-
+tion for streaming data completion.
+Functional Tensor DecompositionBefore introducing the online algorithm, we first introduce the
+batch tensor train decomposition (TTD) (i.e., off-line setting), which uses INRs to parameterize factor
+matrices of the TT decomposition. Specifically, for the n-th TT factor tensor U(n)
+t , we use an INR
+(34) to parameterize it. Such INR is a multilayer perceptron (MLP) where
+with parameters Θn, which takes a coordinate v∈R as input and returns a vector or matrix
+accordingly:
+fΘn(v) =W d(σ(Wd−1 · · ·σ(W 1v)))(2)
+where Θn ≜{W i}d
+i=1 are weight matrices with W1 ∈R 1×r and Wi ∈R r×r for i= 2,3, . . . , d−1
+and Wd ∈R r×r or Wd ∈R r×r2
+depending on n= 1, N or n= 2, .., N−1 and σ(·) = sin(ω0·) is
+the sine activation function that is more effective for INR (34). To generate the factor tensors U(n)
+t ,
+we consider the parallel notation forI t
+n input coordinates:
+fΘn(v)≜(f Θn(v(1)), . . . , fΘn(v(I tn)))T ∈R I t
+n×r,
+where v= [I t
+n]≜(1,2, . . . , I t
+n)T represents the input coordinate vector and v(i) denotes the i-th
+element of the vector v. We use this output tensor fΘn(v) (i.e., fΘn([I t
+n])) as the factor tensor U(n)
+t
+of the TT decomposition and then obtain the TTD representation of an N th-order streaming tensor
+Xt:
+Xt = [[{fΘn([I t
+n])}N
+n=1]](3)
+We have hence usedN INRs {fΘn(·)}N
+n=1 to parameterize the factor tensors of the TT decomposition.
+3
+
+
+===== PAGE 4 =====
+The TTD enjoys two potential advantages for streaming data analysis. First, the functional repre-
+sentation naturally allows us to model streaming data in an efficient way by simply adding new
+coordinates into the model (i.e., by expanding the coordinates [I t
+n]) during online optimization. With
+the expanding of coordinates over time, the output of INR (i.e., the factor tensors) correspondingly
+increases in size to fit the larger size of the new data stream. Second, the TTD is less sensitive to the
+data rank and more robust general use model.
+Online Functional Tensor DecompositionWe now introduce the proposed OTTD. In the online
+setting, a new tensor Xt ∈R I t
+1×I t
+2···×I t
+N arrives at each time t with missing values. We dynamically
+update the TTD model to accommodate the incremental growth of the streaming tensor. Our streaming
+tensor completion algorithm consists of the initialization stage and the online update stage.
+Initialization Stage:Given an initial streaming tensor X1 ∈R I 1
+1 ×I 1
+2 ×···×I 1
+N , we optimize the
+following objective function based on the TTD representation:
+min
+{Θn}
+∥P1 ⊗(Y 1 −[[{f Θn([I1
+n])}N
+n=1]])∥2
+F ,(4)
+where P1 is the initial mask, Y1 =X 1 is the initial observed tensor, Θn are learnable parameters
+of the INR fΘn(·), and [I1
+n] denotes the coordinates of the tensor along dimension n. To address
+the optimization problem, we use gradient descent-based methods to update the INR parameters
+{Θn}N
+n=1 with the loss.
+Online Stage:In the online update stage, a new tensor Xt ∈R I t
+1×···×I t
+N (t≥2 ) comes at each
+time point and we need to update the online TTD model to accommodate the growth of streaming
+tensor sizes. We take the update of the n-th dimension as an example. At time t, the streaming tensor
+size grows by the scale of I t
+n −I t−1
+n along the n-th dimension. We adapt to the new tensor size by
+simply adding I t
+n −I t−1
+n coordinates to the corresponding factor INR fΘn(·) :R→R r. Specifically,
+suppose that the coordinate vector at the last time point is [I t−1
+n ]≜(1, . . . , I t−1
+n )T , then the new
+coordinate vector at the time point t is [I t
+n]≜(1, . . . , I t
+n)T Based on the enlarged OFTD model, we
+consider the following optimization problem during the online staget:
+min
+{Θn}
+∥Pt ⊗(Y t −[[{f Θn([I t
+n])}N
+n=1]])∥2
+F (5)
+Similarly, we use the Adam optimizer to update the INR parameters {Θn}N
+n=1 with the updated
+loss at each time point t. Here, the observed data Yt = (X t \ X t−1)∈R I t
+1×···×I t
+N contains the
+new data at time t, i.e., the INRs {fΘn(·)}N
+n=1 are optimized to fit the new data in Xt \ Xt−1 with
+initialization weights {Θn} being taken from the last time point (i.e., the continual learning). Such
+online optimization strategy is reasonable since it is impractical to use all historical data at each time
+point, as this would result in large computational costs. Therefore, we consider only fitting the new
+data to optimize the INRs in each time point t. For single-aspect streams, we continually expand the
+temporal coordinates of OTTD, while for multi-aspect streams, we need to continually expand the
+coordinates in all dimensionsn= 1, . . . , N. Given a total timeT, the completion result is obtained
+by the FTD model [[{fΘn([I T
+n ])}N
+n=1]]∈R I T
+1 ×···×I T
+N after T optimization steps under the continual
+learning manner.
+3.4 Theoretical Analysis
+We interpret two insights of our method, i.e., the spatial-temporal continuity of OTTD brought from
+INR, and the regret bound of the OTTD model that reveals its forgetting behavior, which motivates
+us to design memory replay to alleviate forgetting. First, we show that our OTTD method preserves
+the tensor spatial-temporal smoothness from the Lipschitz smooth perspective. Lemma 1 shows that
+the TTD model preserves the spatial-temporal continuity of the estimated tensor Xt (i.e., elements
+that are closer to each other are more likely to share similar structures).
+Based on Lemma 1, we present a regret bound of OTTD regarding the loss of historical information
+when fitting new data streams, which reveals the forgetting behavior of INR.
+Theorem 1 shows that the regret bound is proportional to the positional distance (I t
+n + 1−i n)
+between the considered point (i1, i2, i3) and the new data stream position I t
+n + 1. This indicates
+that information that is more distant from the new data stream is more likely to be forgotten. To
+alleviate the forgetting, we design a long-tail memory replay continual learning method. [Lipschitz
+4
+
+
+===== PAGE 5 =====
+smooth bound for FTD] Let the tensor Xt ∈R I t
+1×I t
+2×I t
+3 satisfy FTD, where each factor function is
+of the form fΘn(·) :R→R r (n= 1,3 ) and fΘ2(·) :R→R r2
+where both are INR’s formulated
+as fΘn(v) =W d(σ(Wd−1 · · ·σ(W 1v))) with activation function σ(·) = sin(ω 0·). Assume that
+each element of the weight matrix W follows i.i.d. N(0, w 2). Then for any δ∈(0,1) , any spatial
+coordinates v, v′ ∈Z 2, where v= (v (1), v(2)), v′ = (v ′
+(1), v′
+(2)) and any temporal coordinates
+k, k′ ∈Z, with probability at least1−δthe following Lipschitz smoothness holds forX t:
+|(Xt)(v(1),v(2),k) −(X t)(v′
+(1),v′
+(2),k)| ≤C 1||v−v ′||l1 ,(Spatial smooth) (6)
+|(Xt)(v(1),v(2),k) −(X t)(v(1),v(2),k′)| ≤C 1|k−k ′|,(Temporal smooth) (7)
+whereC 1 =ω 3d−3
+0
+ 
+2wr3 +wln 3d
+δ
+3d
+max(I t
+1I t
+2, It
+1I t
+3, It
+2I t
+3)is a Lipschitz constant.
+Since each element of the weight matrices W∈R r×r follows i.i.d. N(0, w 2), we have the tail bound
+P(||W|| l1 ≤η)≥1−exp(−η/w+ 2r 2)(8)
+We denote d to be the number of layers in and INR so we have 2d layers from fΘ1 , fΘ3 with each
+layer W∈R r×r and another d−1 layers with W∈R r×r and a single layer with W∈R r×r2
+.
+Hence from the previous lemma the probability of all the weight matrices of the OFTD model have
+l1-norm less thanηis at least
+1−(3d−1) exp(−η/w+ 2r 2)−exp(−η/w+ 2r 3)≥1−3dexp(−η/w+ 2r 3)
+Let1−3dexp(−η/w+ 2r 3) = 1−δ, we haveη= 2wr 3 +wln 3d
+δ .
+Note that the sine activation function satisfies |sin(ω 0x)| ≤ω 0|x| (ω0 >0 ). Hence we have
+||fΘn(x)||l1 ≤η dωd−1
+0 |x|. For any(i, j, k)we have
+(Xt)(i,j,k) =f Θ1([I t
+1])T
+(i)fΘ2([I t
+2])(j)fΘ3([I t
+3])(k).(9)
+Where fΘ1([I t
+1])(i), fΘ3([I t
+3])(k) ∈R r andf Θ2([I t
+2])(j) ∈R r×r We first note that fΘ2([I t
+2])(j) ∈
+Rr×r is a matrix and we can get the following loose upper bound:
+∥fΘ2([I t
+2])(j)∥op ≤ ∥fΘ2([I t
+2])(j)∥l1
+We will use this loose upper bound in our proof to match our union bound we derived. Then for any
+(i, j, k)and(i ′, j, k)we have
+|(Xt)(i,j,k) −(X t)(i′,j,k)|=
+(fΘ1([I t
+1])T
+(i) −f Θ1([I t
+1])T
+(i′))fΘ2([I t
+2])(j)fΘ3([I t
+3])(k)
+
+≤ ||fΘ1([I t
+1])(i) −f Θ1([I t
+1])(i′)||l1 ||fΘ2([I t
+2])(j)||l1 ||fΘ3([I t
+3])(k)||l1
+=||f Θ1(i)−f Θ1(i′)||l1 ||fΘ2(j)||l1 ||fΘ3(k)||l1 (10)
+The bound on the first term holds as:
+||fΘ1(i)−f Θ1(i′)||l1 =||W d(σ(Wd−1 · · ·σ(W 1i)))−W d(σ(Wd−1 · · ·σ(W 1i′)))||l1
+≤η||σ(W d−1 · · ·σ(W 1i))−σ(W d−1 · · ·σ(W 1i′))||l1
+≤ηω 0||Wd−1 · · ·σ(W 1i)−W d−1 · · ·σ(W 1i′)||l1
+≤η dωd−1
+0 |i−i ′|.(11)
+Thus we have
+|(Xt)(i,j,k) −(X t)(i′,j,k)| ≤ ||f Θ1(i)−f Θ1(i′)||l1 ||fΘ2(j)||l1 ||fΘ3(k)||l1
+≤η dωd−1
+0 |i−i ′|ηdωd−1
+0 |j|η dωd−1
+0 |k|
+≤η 3dω3d−3
+0 I t
+2I t
+3|i−i ′|.(12)
+Similarly, we can derive the analogous bounds for the two other dimensions:
+|(Xt)(i,j,k) −(X t)(i,j′,k)| ≤η 3dω3d−3
+0 I t
+1I t
+3|j−j ′|(13)
+|(Xt)(i,j,k) −(X t)(i,j,k′)| ≤η 3dω3d−3
+0 I t
+1I t
+2|k−k ′|(14)
+5
+
+
+===== PAGE 6 =====
+Hence from the triangle inequality one can easily derive that for any spatial coordinates v, v′ and
+temporal coordinatesk, k ′ the following bounds hold with probability at least1−δ:
+|(Xt)(v(1),v(2),k) −(X t)(v′
+(1),v′
+(2),k)| ≤C 1||v−v ′||l1 ,(15)
+|(Xt)(v(1),v(2),k) −(X t)(v(1),v(2),k′)| ≤C 1|k−k ′|,(16)
+whereC 1 =ω 3d−3
+0 (2wr3 +wln 3d
+δ )3d max(I t
+1I t
+2, It
+1I t
+3, It
+2I t
+3). The proof is completed.
+[Regret bound for online FTD] Denote the OFTD model learned at the historical time point t by
+Xt = [[{fΘn([I t
+n];t)} 3
+n=1]]∈R I t
+1×I t
+2×I t
+3 , where fΘn([I t
+n];t) denotes the n-th factor function at time
+t. Assume that:
+• The OFTD model learned at the new time pointt+1 is invariant at the boundary(I t
+1, It
+2, It
+3),
+i.e.,f Θn(I t
+n;t+ 1) =f Θn(I t
+n;t)(n= 1,2,3).
+• Each element of the weight matrix of the d-layer INRs {fΘn(·)} follows i.i.d. N(0, w 2)
+with sine activation functionσ(·) = sin(ω 0·).
+• Thel 1-norm of derivative of each factor INR||f ′
+Θn(x)||l1 is bounded byκ >0.
+Then for any δ∈(0,1) and any historical position (i1, i2, i3) (in ≤I t
+n), the following regret bound
+between the new OFTD model Xt+1 = [[{fΘn([I t+1
+n ];t+ 1)} 3
+n=1]]∈R I t+1
+1 ×I t+1
+2 ×I t+1
+3 (Take an
+exampleI t+1
+n =I t
+n + 1) and the old OFTD modelX t holds with probability at least1−δ:
+|(Xt+1)(i1,i2,i3) −(X t)(i1,i2,i3)| ≤C 2 max
+n
+(I t
+n + 1−i n),(17)
+whereC 2 = 6(η3dω3d−3
+0 +κη 2dω2d−2
+0 ) max(It
+1I t
+2, It
+1I t
+3, It
+2I t
+3)andη= 2wr 3 +wln 3d
+δ .
+First we derive the regret bound for each factor INR fΘn(·) :R→R r. For any x∈[0, I t
+n] we have:
+||fΘn(x;t+ 1)−f Θn(x;t)|| l1 ≤
+
+fΘn(x;t+ 1)−
+Z I t
+n+1
+I tn
+fΘn(s;t+ 1)ds
+
+
+l1
++
+
+
+Z I t
+n+1
+I tn
+fΘn(s;t+ 1)ds−
+Z I t
+n+1
+I tn
+fΘn(s;t)ds
+
+
+l1
++
+
+
+Z I t
+n+1
+I tn
+fΘn(s;t)ds−f Θn(x;t)
+
+
+l1
+.(18)
+From Lemma 1 and its proof, we have that with probability at least 1−δ the first term on the
+right-hand side of (18) admits:
+fΘn(x;t+ 1)−
+Z I t
+n+1
+I tn
+fΘn(s;t+ 1)ds
+
+
+l1
+=
+
+
+Z I t
+n+1
+I tn
+(fΘn(x;t+ 1)−f Θn(s;t+ 1))ds
+
+
+l1
+≤
+
+
+Z I t
+n+1
+I tn
+ηdωd−1
+0 (s−x)ds
+
+
+l1
+≤
+
+
+Z I t
+n+1
+I tn
+ηdωd−1
+0 (I t
+n + 1−x)ds
+
+
+l1
+=η dωd−1
+0 |I t
+n + 1−x|,(19)
+whereη= 2wr 2 +wln 3d
+δ . Similarly we can get for the third term:
+
+Z I t
+n+1
+I tn
+fΘn(s;t)ds−f Θn(x;t)
+
+
+l1
+≤η dωd−1
+0 |I t
+n + 1−x|(20)
+Define hn(x) =f Θn(x;t+ 1)−f Θn(x;t), and from assumptions we have hn(I t
+n) = 0. From the
+mean value theorem for integrals, the second term on the right-hand side of (18) admits:
+
+Z I t
+n+1
+I tn
+fΘn(s;t+ 1)ds−
+Z I t
+n+1
+I tn
+fΘn(s;t)ds
+
+
+l1
+=
+
+
+Z I t
+n+1
+I tn
+hn(s)ds
+
+
+l1
+=||h n(ζ)|| l1 (21)
+6
+
+
+===== PAGE 7 =====
+whereζ∈(I t
+n, It
+n + 1). By the Lagrange mean value theorem we have:
+||hn(ζ)|| l1 =||h n(ζ)−h n(I t
+n)||l1 =||h ′
+n(ξ)(ζ−I t
+n)||l1 ≤2κ|I t
+n + 1−x|(22)
+where ξ∈(I t
+n, ζ). Here, we have used the assumption that ||h′
+n(ξ)||l1 =||f ′
+Θn(ξ;t+ 1)−
+f ′
+Θn(ξ;t)|| l1 ≤2κ . Combining all the results, we obtain the regret bound for the individual factor
+INRs:
+||fΘn(x;t+ 1)−f Θn(x;t)|| l1 ≤2(η dωd−1
+0 +κ)|I t
+n + 1−x|.(23)
+Now we can derive the regret bound for online FTD. Write each element of the tensorX t as
+(Xt)(i1,i2,i3) =f Θ1([I t
+1];t) (i1)fΘ2([I t
+2];t) (i2)fΘ3([I t
+3];t) (i3)
+By adding and subtracting terms (standard product difference expansion), for any(i1, i2, i3) (in ≤I t
+n)
+we have:
+|(Xt+1)(i1,i2,i3) −(X t)(i1,i2,i3)|
+=|f Θ1([I t
+1];t+ 1) T
+(i1)fΘ2([I t
+2];t+ 1) (i2)fΘ3([I t
+3];t+ 1) (i3) −f Θ1([I t
+1];t) T
+(i1)fΘ2([I t
+2];t) (i2)fΘ3([I t
+3];t) (i3)|
+(24)
+=|(f Θ1(i1;t+ 1)−f Θ1(i1;t)) T fΘ2(i2;t)f Θ3(i3;t)
++f Θ1(i1;t+ 1) T (fΘ2(i2;t+ 1)−f Θ2(i2;t))f Θ3(i3;t)
++f Θ1(i1;t+ 1) T fΘ2(i2;t+ 1)(f Θ3(i3;t+ 1)−f Θ3(i3;t))|
+≤ ||fΘ1(i1;t+ 1)−f Θ1(i1;t)|| l1 ||fΘ2(i2;t)|| l1 ||fΘ3(i3;t)|| l1
++||f Θ2(i2;t+ 1)−f Θ2(i2;t)|| l1 ||fΘ1(i1;t+ 1)|| l1 ||fΘ3(i3;t)|| l1
++||f Θ3(i3;t+ 1)−f Θ3(i3;t)|| l1 ||fΘ1(i1;t+ 1)|| l1 ||fΘ2(i2;t+ 1)|| l1 .(25)
+Substituting (23) and the bound we derived in the previous lemma ||fΘn(x)||l1 ≤η dωd−1
+0 |x| into
+(25) we obtain:
+|(Xt+1)(i1,i2,i3) −(X t)(i1,i2,i3)|
+≤2(η dωd−1
+0 +κ)|I t
+1 + 1−i 1|(ηdωd−1
+0 )2I t
+2I t
+3
++ 2(ηdωd−1
+0 +κ)|I t
+2 + 1−i 2|(ηdωd−1
+0 )2I t
+1I t
+3
++ 2(ηdωd−1
+0 +κ)|I t
+3 + 1−i 3|(ηdωd−1
+0 )2I t
+1I t
+2
+≤C 2 max
+n
+(I t
+n + 1−i n)(26)
+whereC 2 = 6(η3dω3d−3
+0 +κη 2dω2d−2
+0 ) max(It
+1I t
+2, It
+1I t
+3, It
+2I t
+3). The proof is completed.
+3.5 Continual Learning via Memory Replay
+To alleviate forgetting, we design a long-tail memory buffer that utilizes a part of historical data
+when fitting new data. Theorem 1 shows that more distant information is more likely to be forgotten.
+Thus we consider the long-tail Beta distribution to construct a memory buffer, which stores more
+data that is distant from the new data stream. For multi-aspect streams, the memory buffer Mt ∈
+RI t
+1×···×I t
+N at the time t is constructed through a sampling process on the historical data Xt−1 by
+(Mt)(i1,...,iN) = (Xt−1)(i1,...,iN) if(i 1, . . . , iN)∈ I t otherwise(M t)(i1,...,iN) = 0where
+It ={(i 1, . . . , iN)|i n =⌊u j
+nI t−1
+n ⌋, uj
+n ∼Beta(α, β), j= 1, . . . , J, n= 1, . . . , N}.
+The It is the index set of the memory buffer such that the indexes in It follow a long-tail Beta
+distribution to store more information that is distant from the new data stream. This is achieved by
+setting appropriate α and β such that Beta(α, β) is a long-tail distribution. A total number of J N
+indices inI t are selected to construct the memory bufferM t.
+The new online optimization model at timetwith the memory bufferM t is formulated as
+min
+{Θn}
+∥Pt ⊗(Y t −[[{f Θn([I t
+n])}N
+n=1]])∥2
+F +
+X
+v∈It
+(Mt(v) −[[{f Θn(v(n))}N
+n=1]])2 (27)
+Given a tensor of size I1 × · · · ×IN , OTTD consumes O(mrdPN
+n=1 In +r 2QN
+n=1 In) in each itera-
+tion, where O(mr2dPN
+n=1 In) is the INR complexity, O(r2QN
+n=1 In) is the TT product complexity,
+ris the TT rank, andm, dare network’s width and depth.
+7
+
+
+===== PAGE 8 =====
+4 Experiments
+4.1 Experimental Setup
+We evaluate the proposed TT-OFTD approach on both single-aspect (e.g., temporal evolution) and
+multi-aspect (e.g., spatial and temporal evolutions) streaming tensor completion tasks. We use
+Normalized Reconstruction Error (NRE) as the primary evaluation metric across various sampling
+rates (e.g., 0.1, 0.2, 0.3).
+4.2 Results
+[Note to author: Insert your TT-specific experimental results, NRE tables, and temporal curve figures
+here, directly comparing the TT-OFTD implementation against baseline static tracking algorithms.]
+5 Conclusion
+We have proposed a novel streaming data completion method, OFTD, which utilizes Tensor-Train
+(TT) decomposition parameterized by INRs to model tensor streams. By transforming classical online
+tensor tracking into a continuous functional learning paradigm coupled with long-tail memory replay,
+the model successfully adapts to new streaming data while mitigating catastrophic forgetting. Future
+work will explore more advanced, buffer-free continual learning methods such as gradient projection
+to further optimize the learning of INRs for infinite tensor streams.
+References
+[1] Zhang X, Li Y , Luo Y , Xie Q, Meng D. Online Functional Tensor Decomposition via Continual
+Learning for Streaming Data Completion. InThe Thirty-ninth Annual Conference on Neural
+Information Processing Systems.
+[2] K. Abed-Meraim, N. L. Trung, A. Hafiane, et al. A contemporary and comprehensive survey
+on streaming tensor decomposition.IEEE Transactions on Knowledge and Data Engineering,
+35(11):10897–10921, 2022a.
+[3] K. Abed-Meraim, N. L. Trung, A. Hafiane, et al. Robust tensor tracking with missing data and
+outliers: Novel adaptive CP decomposition and convergence analysis.IEEE Transactions on
+Signal Processing, 70:4305–4320, 2022b.
+[4] D. Ahn, S. Kim, and U. Kang. Accurate online tensor factorization for temporal tensor streams
+with missing values. InProceedings of the 30th ACM International Conference on Information
+& Knowledge Management, pages 2822–2826, 2021.
+[5] K. Gilman, D. A. Tarzanagh, and L. Balzano. Grassmannian optimization for online tensor
+completion and tracking with the t-svd.IEEE Transactions on Signal Processing, 70:2152–2167,
+2022.
+[6] J.-G. Jang and U. Kang. Static and streaming tucker decomposition for dense tensors.ACM
+Transactions on Knowledge Discovery from Data, 17(5):1–34, 2023.
+[7] T. T. Le, K. Abed-Meraim, N. L. Trung, and A. Hafiane. A novel recursive least-squares
+adaptive method for streaming tensor-train decomposition with incomplete observations.Signal
+Processing, 216:109297, 2024.
+[8] D. Lee and K. Shin. Robust factorization of real-world tensor streams with patterns, missing
+values, and outliers. In2021 IEEE 37th International Conference on Data Engineering (ICDE),
+pages 840–851, 2021.
+[9] C. Liu, T. Wu, Z. Li, T. Ma, and J. Huang. Robust online tensor completion for IoT streaming
+data recovery.IEEE Transactions on Neural Networks and Learning Systems, 34(12):10178–
+10192, 2022.
+8
+
+
+===== PAGE 9 =====
+[10] B. Mildenhall, P. P. Srinivasan, M. Tancik, J. T. Barron, R. Ramamoorthi, and R. Ng. NeRF:
+Representing scenes as neural radiance fields for view synthesis.Communications of the ACM,
+65(1):99–106, 2021.
+[11] V . Sitzmann, J. Martel, A. Bergman, D. Lindell, and G. Wetzstein. Implicit neural representations
+with periodic activation functions.Advances in Neural Information Processing Systems, 33:7462–
+7473, 2020.
+[12] S. Smith, K. Huang, N. D. Sidiropoulos, and G. Karypis. Streaming tensor factorization for
+infinite data sources. InProceedings of the 2018 SIAM International Conference on Data
+Mining, pages 81–89, 2018.
+[13] T. Wu. Online tensor low-rank representation for streaming data clustering.IEEE Transactions
+on Circuits and Systems for Video Technology, 33(2):602–617, 2022.
+[14] Q. Yi, C. Wang, K. Wang, and Y . Wang. Effective streaming low-tubal-rank tensor approxima-
+tion via frequent directions.IEEE Transactions on Neural Networks and Learning Systems,
+35(1):1113–1126, 2022.
+[15] R. Yu, D. Cheng, and Y . Liu. Accelerated online low rank tensor learning for multivariate
+spatiotemporal streams. InInternational Conference on Machine Learning, pages 238–247,
+2015.
+[16] Z. Zhang, D. Liu, S. Aeron, and A. Vetro. An online tensor robust PCA algorithm for sequential
+2d data. In2016 IEEE International Conference on Acoustics, Speech and Signal Processing
+(ICASSP), pages 2434–2438, 2016.
+[17] X. Zhong, J. Chen, L. Zhang, and Y . Zhang. Window-based dynamic streaming tensor analysis
+based on CP decomposition. In2021 4th International Conference on Artificial Intelligence
+and Big Data (ICAIBD), pages 681–686, 2021.
+[18] Y . Liu, J. Liu and C. Zhu, "Low-Rank Tensor Train Coefficient Array Estimation for Tensor-on-
+Tensor Regression," in IEEE Transactions on Neural Networks and Learning Systems, vol. 31,
+no. 12, pp. 5402-5411, Dec. 2020, doi: 10.1109/TNNLS.2020.2967022.
+[19] Mehrnaz Najafi, Lifang He, and Philip S. Yu. Outlier-robust multi-aspect streaming tensor com-
+pletion and factorization. InProceedings of the Twenty-Eighth International Joint Conference
+on Artificial Intelligence, pages 3187–3194, 2019.
+[20] Cheng Qian, Nikos Kargas, Cao Xiao, Lucas Glass, Nicholas Sidiropoulos, and Jimeng Sun.
+Multi-version tensor completion for time-delayed spatio-temporal data. InProceedings of the
+Thirtieth International Joint Conference on Artificial Intelligence, pages 2906–2912, 2021.
+[21] Yexun Hu, Tai-Xiang Jiang, and Xi-Le Zhao. Degradation accordant plug-and-play for low-rank
+tensor completion. InProceedings of the Thirty-First International Joint Conference on Artificial
+Intelligence, pages 1843–1849, 2022.
+[22] Truong Minh-Chinh, Viet-Dung Nguyen, Nguyen Linh-Trung, and Karim Abed-Meraim. Adap-
+tive parafac decomposition for third-order tensor completion. In2016 IEEE Sixth International
+Conference on Communications and Electronics (ICCE), pages 297–301, 2016.
+[23] Dongjin Lee and Kijung Shin. Robust factorization of real-world tensor streams with patterns,
+missing values, and outliers. In2021 IEEE 37th International Conference on Data Engineering
+(ICDE), pages 840–851, 2021.
+[24] Xuemei Zhong, Junhua Chen, Lei Zhang, and Yan Zhang. Window-based dynamic streaming
+tensor analysis based on CP decomposition. In2021 4th International Conference on Artificial
+Intelligence and Big Data (ICAIBD), pages 681–686, 2021.
+[25] Keyu Yang, Yunjun Gao, Yifeng Shen, Baihua Zheng, and Lu Chen. DisMASTD: An efficient
+distributed multi-aspect streaming tensor decomposition. InProceedings of the ACM Turing
+Award Celebration Conference, pages 127–128, 2023.
+9
+
+
+===== PAGE 10 =====
+[26] K. Abed-Meraim, N. L. Trung, Adel Hafiane, et al. Tracking online low-rank approximations of
+higher-order incomplete streaming tensors.Patterns, 4(6), 2023.
+[27] Morteza Mardani, Gonzalo Mateos, and Georgios B Giannakis. Subspace learning and impu-
+tation for streaming big data matrices and tensors.IEEE Transactions on Signal Processing,
+63(10):2663–2677, 2015.
+[28] Hiroyuki Kasai. Fast online low-rank tensor subspace tracking by CP decomposition using
+recursive least squares from incomplete observations.Neurocomputing, 347:177–190, 2019.
+[29] Qingquan Song, Xiao Huang, Hancheng Ge, James Caverlee, and Xia Hu. Multi-aspect stream-
+ing tensor completion. InProceedings of the 23rd ACM SIGKDD International Conference on
+Knowledge Discovery and Data Mining, pages 435–443, 2017.
+[30] Madhav Nimishakavi, Bamdev Mishra, Manish Gupta, and Partha Talukdar. Inductive frame-
+work for multi-aspect streaming tensor completion with side information. InProceedings of
+the 27th ACM International Conference on Information and Knowledge Management, pages
+307–316, 2018.
+[31] Yishuai Du, Yimin Zheng, Kuang-chih Lee, and Shandian Zhe. Probabilistic streaming tensor
+decomposition. In2018 IEEE International Conference on Data Mining (ICDM), pages 99–108,
+2018.
+[32] Houping Xiao, Fei Wang, Fenglong Ma, and Jing Gao. eOTD: An efficient online tucker
+decomposition for higher order tensors. In2018 IEEE International Conference on Data Mining
+(ICDM), pages 1326–1331, 2018.
+[33] Shikai Fang, Zheng Wang, Zhimeng Pan, Ji Liu, and Shandian Zhe. Streaming bayesian deep
+tensor factorization. InInternational Conference on Machine Learning, pages 3133–3142, 2021.
+[34] Vincent Sitzmann, Julien Martel, Alexander Bergman, David Lindell, and Gordon Wetzstein. Im-
+plicit neural representations with periodic activation functions.Advances in Neural Information
+Processing Systems, 33:7462–7473, 2020.
+[35] Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik, Jonathan T Barron, Ravi Ramamoor-
+thi, and Ren Ng. NeRF: Representing scenes as neural radiance fields for view synthesis.
+Communications of the ACM, 65(1):99–106, 2021.
+[36] Matan Atzmon and Yaron Lipman. Sal: Sign agnostic learning of shapes from raw data. In
+Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages
+2565–2574, 2020.
+[37] Chiyu Jiang, Avneesh Sud, Ameesh Makadia, Jingwei Huang, Matthias Nießner, Thomas
+Funkhouser, et al. Local implicit grid representations for 3D scenes. InProceedings of the
+IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 6001–6010, 2020.
+[38] Ben Mildenhall, Pratul P Srinivasan, Rodrigo Ortiz-Cayon, Nima Khademi Kalantari, Ravi
+Ramamoorthi, Ren Ng, and Abhishek Kar. Local light field fusion: Practical view synthesis
+with prescriptive sampling guidelines.ACM Transactions on Graphics (ToG), 38(4):1–14, 2019.
+[39] Honglin Chen, Rundi Wu, Eitan Grinspun, Changxi Zheng, and Peter Yichen Chen. Implicit
+neural spatial representations for time-dependent PDEs. InInternational Conference on Machine
+Learning, pages 5162–5177, 2023.
+[40] Yinbo Chen, Sifei Liu, and Xiaolong Wang. Learning continuous image representation with
+local implicit image function. InProceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition, pages 8628–8638, 2021.
+[41] Ivan Skorokhodov, Savva Ignatyev, and Mohamed Elhoseiny. Adversarial generation of con-
+tinuous images. InProceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, pages 10753–10764, 2021.
+[42] Jiaming Zhao, Wenbo Qiao, Peng Zhang, and Hui Gao. Quantum implicit neural representations.
+InProceedings of the International Conference on Machine Learning, volume 235, pages
+60940–60956, 2024.
+10
+
+
+===== PAGE 11 =====
+[43] Kexuan Shi, Xingyu Zhou, and Shuhang Gu. Improved implicit neural representation with
+fourier reparameterized training. InProceedings of the IEEE/CVF Conference on Computer
+Vision and Pattern Recognition, pages 25985–25994, 2024.
+[44] Jiayi Li, Xile Zhao, Jianli Wang, Chao Wang, and Min Wang. Superpixel-informed implicit
+neural representation for multi-dimensional data. InProceedings of the European Conference
+on Computer Vision, pages 258–276, 2024.
+[45] Tamara G Kolda and Brett W Bader. Tensor decompositions and applications.SIAM review,
+51(3):455–500, 2009.
+[46] Monica Pragliola, Luca Calatroni, Alessandro Lanza, and Fiorella Sgallari. On and beyond total
+variation regularization in imaging: the role of space variance.SIAM Review, 65(3):601–685,
+2023.
+[47] German I. Parisi, Ronald Kemker, Jose L. Part, Christopher Kanan, and Stefan Wermter.
+Continual lifelong learning with neural networks: A review.Neural Networks, 113:54–71, 2019.
+11

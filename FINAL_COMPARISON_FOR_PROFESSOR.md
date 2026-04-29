@@ -8,7 +8,10 @@ Compare the original paper's reported OFTD results against the new TT-based theo
   - `SR=0.1`: `0.094`
   - `SR=0.2`: `0.087`
   - `SR=0.3`: `0.084`
-- **Condition (single-aspect, Table 2, OFTD, SR=0.3):** `0.093`
+- **Condition (single-aspect, Table 2, OFTD):**
+  - `SR=0.1`: `0.116`
+  - `SR=0.2`: `0.094`
+  - `SR=0.3`: `0.093`
 
 ## New TT Theory Results (Recreated)
 
@@ -32,6 +35,17 @@ Best TT result is selected per SR from `R in {20,40,60,80,100}` with seeds `42,7
 
 Average running time during each online update is explicitly reported in the last column.
 Paper runtime note: Table 3 reports an overall `Time (s)` metric for OFTD (not a per-SR Foreman breakdown in the table text extraction).
+
+## Condition: SR-by-SR (0.1 / 0.2 / 0.3)
+TT results below use a fixed single-aspect protocol at `R=80`, seed `42` (same setup across SR values).
+
+| SR | Paper OFTD NRE | TT NRE (`R=80`) | Gap (TT - Paper) | Relative Gap | Avg online update time (TT, s/update) |
+|---|---:|---:|---:|---:|---:|
+| 0.1 | `0.1160` | `0.1125` | `-0.0035` | `-3.1%` | `0.6586` |
+| 0.2 | `0.0940` | `0.0919` | `-0.0021` | `-2.2%` | `0.6525` |
+| 0.3 | `0.0930` | `0.0878` | `-0.0052` | `-5.6%` | `0.7028` |
+
+Average running time during each online update is explicitly reported in the last column.
 
 ## Theory-Isolated Check (Foreman, Same Protocol)
 To isolate decomposition effect, a strict run used identical protocol and only changed model decomposition:
@@ -63,6 +77,9 @@ This supports that the Foreman degradation is primarily tied to the TT/theory ch
   - `oftd/foreman_ftd_paper_recreate_sr02_r_sweep.csv`
   - `oftd/foreman_ftd_paper_recreate_r_sweep.csv`
   - `oftd/foreman_tt_vs_paper_sr_comparison.csv`
+  - `oftd/condition_single_sr01_r80_seed42.csv`
+  - `oftd/condition_single_sr02_r80_seed42.csv`
+  - `oftd/condition_tt_vs_paper_sr_r80_seed42.csv`
   - `oftd/condition_ftd_paper_recreate_r_sweep_seed42.csv`
   - `oftd/foreman_theory_only_attribution_sharedopt_r100_s3.csv`
   - `oftd/new_theory_paper_recreate_benchmark.csv`
@@ -72,8 +89,20 @@ This supports that the Foreman degradation is primarily tied to the TT/theory ch
     - params vs performance
     - train time vs error
     - inference time vs error
+    - `condition_single_sr_nre_vs_sr.png`
+    - `condition_single_sr_update_time_vs_sr.png`
+    - `condition_single_sr_infer_time_vs_sr.png`
+    - `condition_single_sr_time_vs_error.png`
 
 ## Final Bottom Line
 - **Foreman:** TT theory is below paper OFTD baseline by a wide margin.
 - **Condition:** TT theory reaches slightly better final NRE than paper reference.
 - Overall: the new theory is **not yet a consistent replacement** for the original paper method across datasets.
+
+## Full Experiment Package
+- Generated package folder:
+  - `oftd/paper_experiment_package/`
+- Package builder script:
+  - `oftd/build_paper_experiment_package.py`
+- CP baseline sweep script used for paper-style comparisons:
+  - `oftd/OFTD_CP_sweep.py`

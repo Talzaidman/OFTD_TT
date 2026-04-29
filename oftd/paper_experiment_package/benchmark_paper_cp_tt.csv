@@ -1,0 +1,19 @@
+dataset,sample_rate,model,final_test_nre,avg_update_time_s
+condition,0.1,CP baseline,0.091488,0.15333242933537053
+condition,0.1,Paper OFTD,0.116,
+condition,0.1,TT (Online_FTD_net),0.112457,0.6585580595874714
+condition,0.2,CP baseline,0.071119,0.1528596256684492
+condition,0.2,Paper OFTD,0.094,
+condition,0.2,TT (Online_FTD_net),0.091922,0.6525087089381207
+condition,0.3,CP baseline,0.066656,0.1526273873185638
+condition,0.3,Paper OFTD,0.093,
+condition,0.3,TT (Online_FTD_net),0.087814,0.7027723834988541
+foreman,0.1,CP baseline,0.09849433333333334,2.7350703703703707
+foreman,0.1,Paper OFTD,0.094,
+foreman,0.1,TT (Online_FTD_net),0.136763,1.9809074074074073
+foreman,0.2,CP baseline,0.09474033333333333,2.841985185185185
+foreman,0.2,Paper OFTD,0.087,
+foreman,0.2,TT (Online_FTD_net),0.135346,2.0319444444444446
+foreman,0.3,CP baseline,0.09263433333333333,2.8751814814814813
+foreman,0.3,Paper OFTD,0.084,
+foreman,0.3,TT (Online_FTD_net),0.13592200000000002,1.9573629629629632
