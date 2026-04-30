@@ -24,7 +24,7 @@ Mean over seeds `42,7,123`:
 Interpretation: for Foreman under strict isolation, the new FTD theory is currently worse than paper-faithful CP baseline.
 
 ### 2) New-theory FTD R sweep (Foreman, paper-style budget)
-File: `foreman_ftd_paper_recreate_r_sweep.csv`
+Original file: `foreman_ftd_paper_recreate_r_sweep.csv`
 - Seeds: `42,7,123`
 - Budget: `init_iters=4000`, `online_iters=500`
 - R values: `20,40,60,80,100`
@@ -33,6 +33,14 @@ Best mean (across seeds):
 - at `R=20`: avg online test NRE = **0.1337**, final test NRE = **0.1359**
 
 Compared to paper Foreman 0.084: still higher error.
+
+Follow-up dense-TT high-budget file: `foreman_ftd_r20_online1000_s3_by_sr.csv`
+- Seeds: `42,7,123`
+- Budget: `init_iters=4000`, `online_iters=1000`
+- Rank: `R=20`
+- SR=0.3 updated mean: avg online test NRE = **0.1291**, final test NRE = **0.1322**
+
+This improves the dense TT result but remains clearly behind the paper Foreman value.
 
 ### 3) Paper-faithful CP baseline (Condition)
 File: `condition_cp_paper_baseline.log`
@@ -81,5 +89,5 @@ Includes:
 - Condition CP baseline beating paper (0.0605 vs 0.093) is likely due split randomness/protocol details (single run, local RNG path), not a model bug by itself.
 
 ## Bottom Line (New Theory Target)
-- **Foreman**: new FTD theory under strict isolation is clearly behind paper-faithful CP baseline and paper OFTD target.
+- **Foreman**: new FTD theory improves with a larger dense-TT online budget, but remains clearly behind paper-faithful CP baseline and paper OFTD target.
 - **Condition**: new FTD theory can reach/beat the paper OFTD number with sufficient budget (`R=80`, high-budget run).

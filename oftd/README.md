@@ -29,6 +29,9 @@ Important flags:
 - `--normalize-recon`: normalizes reconstruction loss by observed count
 - `--boundary-lambda`: boundary invariance regularization
 - `--deriv-lambda --kappa`: derivative regularization
+- `--lr-a-mult --lr-b-mult --lr-c-mult`: per-factor learning-rate multipliers for dense TT tuning
+- `--clip-grad-norm --init-clip-grad-norm`: online/initial gradient clipping controls
+- `--reuse-online-optimizer`: keep Adam state across online TT updates
 - `--streaming-mode single|multi`: growth mode
 - `--delta-a --delta-b --delta-c`: manual growth steps
 

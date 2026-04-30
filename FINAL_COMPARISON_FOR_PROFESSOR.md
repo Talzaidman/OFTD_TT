@@ -17,21 +17,21 @@ Compare the original paper's reported OFTD results against the new TT-based theo
 
 | Dataset | Setting | Best New TT Result (final test NRE) | Gap vs Paper | Relative Gap |
 |---|---|---:|---:|---:|
-| Foreman (`SR=0.3`) | Multi-aspect, seeds `42, 7, 123`, best at `R=20` | `0.1359` | `+0.0519` | `+61.8%` |
+| Foreman (`SR=0.3`) | Multi-aspect, seeds `42, 7, 123`, dense TT `R=20`, 1000 online iters/update | `0.1322` | `+0.0482` | `+57.4%` |
 | Condition | Single-aspect, seed `42`, best at `R=80` | `0.0878` | `-0.0052` | `-5.6%` |
 
 Interpretation of the table:
-- **Foreman:** new TT theory is currently substantially worse than the paper baseline.
+- **Foreman:** new TT theory improved with extra dense-TT online optimization, but is still substantially worse than the paper baseline.
 - **Condition:** new TT theory can match and slightly outperform the paper reference.
 
 ## Foreman: SR-by-SR (0.1 / 0.2 / 0.3)
-Best TT result is selected per SR from `R in {20,40,60,80,100}` with seeds `42,7,123`.
+Final TT result uses the improved dense-TT profile: `R=20`, 1000 online iterations/update, seeds `42,7,123`. The original rank sensitivity sweep still showed `R=20` as the best setting under the lower online budget.
 
 | SR | Paper OFTD NRE | Best TT NRE | Best R | Gap (TT - Paper) | Relative Gap | Avg online update time (TT, s/update) |
 |---|---:|---:|---:|---:|---:|---:|
-| 0.1 | `0.0940` | `0.1368` | `20` | `+0.0428` | `+45.5%` | `1.9809` |
-| 0.2 | `0.0870` | `0.1353` | `20` | `+0.0483` | `+55.6%` | `2.0319` |
-| 0.3 | `0.0840` | `0.1359` | `20` | `+0.0519` | `+61.8%` | `1.9574` |
+| 0.1 | `0.0940` | `0.1334` | `20` | `+0.0394` | `+42.0%` | `3.6531` |
+| 0.2 | `0.0870` | `0.1317` | `20` | `+0.0447` | `+51.4%` | `3.6696` |
+| 0.3 | `0.0840` | `0.1322` | `20` | `+0.0482` | `+57.4%` | `3.6034` |
 
 Average running time during each online update is explicitly reported in the last column.
 Paper runtime note: Table 3 reports an overall `Time (s)` metric for OFTD (not a per-SR Foreman breakdown in the table text extraction).
@@ -76,6 +76,7 @@ This supports that the Foreman degradation is primarily tied to the TT/theory ch
   - `oftd/foreman_ftd_paper_recreate_sr01_r_sweep.csv`
   - `oftd/foreman_ftd_paper_recreate_sr02_r_sweep.csv`
   - `oftd/foreman_ftd_paper_recreate_r_sweep.csv`
+  - `oftd/foreman_ftd_r20_online1000_s3_by_sr.csv`
   - `oftd/foreman_tt_vs_paper_sr_comparison.csv`
   - `oftd/condition_single_sr01_r80_seed42.csv`
   - `oftd/condition_single_sr02_r80_seed42.csv`
@@ -95,7 +96,7 @@ This supports that the Foreman degradation is primarily tied to the TT/theory ch
     - `condition_single_sr_time_vs_error.png`
 
 ## Final Bottom Line
-- **Foreman:** TT theory is below paper OFTD baseline by a wide margin.
+- **Foreman:** TT theory improved under a denser online budget, but remains below paper OFTD baseline by a wide margin.
 - **Condition:** TT theory reaches slightly better final NRE than paper reference.
 - Overall: the new theory is **not yet a consistent replacement** for the original paper method across datasets.
 

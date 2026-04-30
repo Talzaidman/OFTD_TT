@@ -7,9 +7,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch import optim
 
-from model import Online_FTD_net, online_update_multi_ftd
+from model import (
+    Online_FTD_net,
+    check_ftd_theory_alignment,
+    make_ftd_optimizer,
+    online_update_multi_ftd,
+)
 from utils import calcu_nre, max_update, read_data, dtype, device
 
 
@@ -120,7 +124,14 @@ def run_one(args, rank: int, seed: int):
     B_input = make_coords(B_t)
     C_input = make_coords(C_t)
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = make_ftd_optimizer(
+        model,
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+        lr_a_mult=getattr(args, "lr_a_mult", 1.0),
+        lr_b_mult=getattr(args, "lr_b_mult", 1.0),
+        lr_c_mult=getattr(args, "lr_c_mult", 1.0),
+    )
 
     best_nre_val = float("inf")
     best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
@@ -132,6 +143,9 @@ def run_one(args, rank: int, seed: int):
         X_out = model(A_input, B_input, C_input)
         loss = ((X_out * mask_t_train - X_t * mask_t_train) ** 2).sum()
         loss.backward()
+        init_clip = getattr(args, "init_clip_grad_norm", 0.0)
+        if init_clip is not None and init_clip > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=init_clip)
         optimizer.step()
 
         with torch.no_grad():
@@ -156,9 +170,11 @@ def run_one(args, rank: int, seed: int):
 
     A_T, B_T, C_T = X_train.shape
     max_updates = max_update(A_T, B_T, C_T, A_ini, B_ini, C_ini, A_delta, B_delta, C_delta)
+    reuse_online_optimizer = getattr(args, "reuse_online_optimizer", False)
+    online_optimizer = None
 
     for _ in range(max_updates):
-        model, A_t, B_t, C_t, t_cost, nre_train, nre_test, _ = online_update_multi_ftd(
+        update_result = online_update_multi_ftd(
             alpha_beta,
             model,
             X_train,
@@ -183,7 +199,17 @@ def run_one(args, rank: int, seed: int):
             coord_mode=args.coord_mode,
             loss_scope=args.loss_scope,
             profile_flops=getattr(args, "profile_flops", False),
+            lr_a_mult=getattr(args, "lr_a_mult", 1.0),
+            lr_b_mult=getattr(args, "lr_b_mult", 1.0),
+            lr_c_mult=getattr(args, "lr_c_mult", 1.0),
+            clip_grad_norm=getattr(args, "clip_grad_norm", 1.0),
+            optimizer=online_optimizer,
+            return_optimizer=reuse_online_optimizer,
         )
+        if reuse_online_optimizer:
+            model, A_t, B_t, C_t, t_cost, nre_train, nre_test, _, online_optimizer = update_result
+        else:
+            model, A_t, B_t, C_t, t_cost, nre_train, nre_test, _ = update_result
         online_time += t_cost
         nres_train.append(nre_train)
         nres_test.append(nre_test)
@@ -204,6 +230,7 @@ def run_one(args, rank: int, seed: int):
     final_train_nre = calcu_nre(X_train_f, X_final, mask_train_f).item()
     final_test_nre = calcu_nre(X_test_f, X_final, mask_test_f).item()
     infer_time = timed_inference(model, A_t, B_t, C_t, repeats=args.infer_repeats, warmup=3)
+    diag = check_ftd_theory_alignment(model, A_t, B_t, C_t, delta=1.0)
 
     return {
         "dataset": Path(args.data).name,
@@ -225,6 +252,9 @@ def run_one(args, rank: int, seed: int):
         "avg_flops_m": round(float(np.mean(flops_all) / 1e6), 4) if flops_all else float("nan"),
         "num_updates": int(max_updates),
         "final_shape": f"({int(A_t)},{int(B_t)},{int(C_t)})",
+        "dA_l1_max": round(diag["dA_l1_max"], 6),
+        "dB_l1_max": round(diag["dB_l1_max"], 6),
+        "dC_l1_max": round(diag["dC_l1_max"], 6),
     }
 
 
@@ -249,6 +279,9 @@ def main():
     parser.add_argument("--beta", type=float, default=1.2)
     parser.add_argument("--divide", type=int, default=3)
     parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr-a-mult", type=float, default=1.0)
+    parser.add_argument("--lr-b-mult", type=float, default=1.0)
+    parser.add_argument("--lr-c-mult", type=float, default=1.0)
     parser.add_argument("--weight-decay", type=float, default=1e-8)
     parser.add_argument("--init-iters", type=int, default=300)
     parser.add_argument("--online-iters", type=int, default=80)
@@ -261,6 +294,9 @@ def main():
     parser.add_argument("--kappa", type=float, default=-1.0)
     parser.add_argument("--infer-repeats", type=int, default=20)
     parser.add_argument("--profile-flops", action="store_true")
+    parser.add_argument("--clip-grad-norm", type=float, default=1.0)
+    parser.add_argument("--init-clip-grad-norm", type=float, default=0.0)
+    parser.add_argument("--reuse-online-optimizer", action="store_true")
     parser.add_argument("--out-csv", type=str, default="ftd_sweep_results.csv")
     args = parser.parse_args()
 

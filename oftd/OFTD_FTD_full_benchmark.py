@@ -34,6 +34,9 @@ def main():
         "beta": 1.2,
         "divide": 3,
         "lr": 1e-3,
+        "lr_a_mult": 1.0,
+        "lr_b_mult": 1.0,
+        "lr_c_mult": 1.0,
         "weight_decay": 1e-8,
         "init_iters": 200,
         "online_iters": 40,
@@ -45,6 +48,9 @@ def main():
         "coord_mode": "raw",
         "loss_scope": "sampled",
         "profile_flops": False,
+        "clip_grad_norm": 1.0,
+        "init_clip_grad_norm": 0.0,
+        "reuse_online_optimizer": False,
         "infer_repeats": 20,
     }
 

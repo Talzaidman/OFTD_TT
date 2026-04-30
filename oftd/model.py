@@ -140,6 +140,54 @@ class Online_FTD_net(nn.Module):
         return torch.einsum("ir,jrs,ks->ijk", A, B, C)
 
 
+def make_ftd_optimizer(
+    model,
+    lr=1e-3,
+    weight_decay=1e-8,
+    lr_a_mult=1.0,
+    lr_b_mult=1.0,
+    lr_c_mult=1.0,
+):
+    """Adam optimizer with separate TT-factor learning-rate controls."""
+    grouped_param_ids = set()
+    param_groups = []
+    for name, module, mult in [
+        ("A_net", getattr(model, "A_net", None), lr_a_mult),
+        ("B_net", getattr(model, "B_net", None), lr_b_mult),
+        ("C_net", getattr(model, "C_net", None), lr_c_mult),
+    ]:
+        if module is None:
+            continue
+        params = [p for p in module.parameters() if p.requires_grad]
+        if params:
+            grouped_param_ids.update(id(p) for p in params)
+            param_groups.append(
+                {
+                    "params": params,
+                    "lr": lr * mult,
+                    "weight_decay": weight_decay,
+                    "name": name,
+                }
+            )
+
+    rest = [
+        p
+        for p in model.parameters()
+        if p.requires_grad and id(p) not in grouped_param_ids
+    ]
+    if rest:
+        param_groups.append(
+            {
+                "params": rest,
+                "lr": lr,
+                "weight_decay": weight_decay,
+                "name": "other",
+            }
+        )
+
+    return optim.Adam(param_groups, lr=lr, weight_decay=weight_decay)
+
+
     
 class Online_CP_multi_net(nn.Module): 
     def __init__(self,R1=100,R2=100,R3=100,mid_channel=256,omega_A=1.5,omega_B=1.5,omega_C=1.5):
@@ -453,9 +501,19 @@ def online_update_multi_ftd(alpha_beta, model, X_train, X_test, mask_train, mask
              A_t, B_t, C_t, A_delta, B_delta, C_delta, divide,
              flops_all=None, every_iter=500, lr=1e-3, weight_decay=1e-8, boundary_lambda=0.0,
              deriv_lambda=0.0, kappa=-1.0, normalize_recon=True,
-             coord_mode="raw", loss_scope="sampled", profile_flops=False):
+             coord_mode="raw", loss_scope="sampled", profile_flops=False,
+             lr_a_mult=1.0, lr_b_mult=1.0, lr_c_mult=1.0, clip_grad_norm=1.0,
+             optimizer=None, return_optimizer=False):
     """Online update for Online_FTD_net with optional theory regularizers."""
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    if optimizer is None:
+        optimizer = make_ftd_optimizer(
+            model,
+            lr=lr,
+            weight_decay=weight_decay,
+            lr_a_mult=lr_a_mult,
+            lr_b_mult=lr_b_mult,
+            lr_c_mult=lr_c_mult,
+        )
 
     prev_A_t, prev_B_t, prev_C_t = A_t, B_t, C_t
     A_t = min(A_t + A_delta, X_train.shape[0])
@@ -590,7 +648,8 @@ def online_update_multi_ftd(alpha_beta, model, X_train, X_test, mask_train, mask
             loss_best = loss_value
             best_params = {k: v.detach().clone() for k, v in model.state_dict().items()}
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        if clip_grad_norm is not None and clip_grad_norm > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_grad_norm)
         optimizer.step()
 
     time_cost = time.perf_counter() - start_time
@@ -614,4 +673,7 @@ def online_update_multi_ftd(alpha_beta, model, X_train, X_test, mask_train, mask
     nre = calcu_nre(X_t[:A_t, :B_t, :C_t], X_Out_real[:A_t, :B_t, :C_t], mask_t_train[:A_t, :B_t, :C_t]).item()
     nre_test = calcu_nre(X_t_test[:A_t, :B_t, :C_t], X_Out_real[:A_t, :B_t, :C_t], mask_t_test[:A_t, :B_t, :C_t]).item()
 
-    return model, A_t, B_t, C_t, time_cost, nre, nre_test, boundary_rel_error
+    result = (model, A_t, B_t, C_t, time_cost, nre, nre_test, boundary_rel_error)
+    if return_optimizer:
+        return (*result, optimizer)
+    return result

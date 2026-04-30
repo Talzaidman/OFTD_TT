@@ -83,6 +83,26 @@ def prep_tt_condition(condition_sr: pd.DataFrame) -> pd.DataFrame:
     ]
 
 
+def prep_tt_foreman_highbudget(path: Path) -> pd.DataFrame:
+    out = pd.read_csv(path).copy()
+    out["sample_rate"] = out["sample_rate"].astype(float)
+    out["avg_online_update_time_s"] = out["online_time_s"] / out["num_updates"].clip(lower=1)
+    g = (
+        out.groupby("sample_rate", as_index=False)
+        .agg(
+            R=("R", "mean"),
+            tt_final_test_nre=("final_test_nre", "mean"),
+            tt_avg_online_nre_test=("avg_online_nre_test", "mean"),
+            tt_avg_update_time_s=("avg_online_update_time_s", "mean"),
+            tt_params=("params", "mean"),
+            tt_total_train_time_s=("total_train_time_s", "mean"),
+            dB_l1_max=("dB_l1_max", "mean"),
+        )
+        .sort_values("sample_rate")
+    )
+    return g
+
+
 def line_plot(x, ys, labels, title, xlabel, ylabel, out_path: Path) -> None:
     plt.figure(figsize=(6.4, 4.2))
     for y, label in zip(ys, labels):
@@ -137,11 +157,17 @@ def main():
     foreman_tt_best_sr, foreman_tt_by_r = prep_tt_foreman(
         foreman_tt_sr01, foreman_tt_sr02, foreman_tt_sr03
     )
+    foreman_highbudget_path = base / "foreman_ftd_r20_online1000_s3_by_sr.csv"
+    foreman_tt_final_sr = foreman_tt_best_sr.copy()
+    foreman_profile_note = "best-R per SR from `R in {20,40,60,80,100}` and 3 seeds."
+    if foreman_highbudget_path.exists():
+        foreman_tt_final_sr = prep_tt_foreman_highbudget(foreman_highbudget_path)
+        foreman_profile_note = "`R=20`, 1000 online iterations/update, and 3 seeds."
     condition_tt = prep_tt_condition(condition_tt_sr)
 
     # Build final table: Foreman (multi-aspect)
     foreman = foreman_cp_sr.merge(
-        foreman_tt_best_sr[
+        foreman_tt_final_sr[
             ["sample_rate", "R", "tt_final_test_nre", "tt_avg_online_nre_test", "tt_avg_update_time_s", "tt_params"]
         ].rename(columns={"R": "tt_best_R"}),
         on="sample_rate",
@@ -165,6 +191,8 @@ def main():
     # Save rank sensitivity tables
     foreman_tt_by_r.to_csv(out_dir / "table_foreman_tt_rank_sensitivity.csv", index=False)
     condition_tt_sr03_by_r.to_csv(out_dir / "table_condition_tt_rank_sensitivity_sr03.csv", index=False)
+    if foreman_highbudget_path.exists():
+        foreman_tt_final_sr.to_csv(out_dir / "table_foreman_tt_r20_online1000_by_sr.csv", index=False)
 
     # Build combined benchmark for convenience
     bench_rows = []
@@ -346,11 +374,23 @@ def main():
     lines.append("")
     lines.append("This package compares **Paper OFTD vs CP baseline vs TT (`Online_FTD_net`)**.")
     lines.append("")
+    lines.append("## Audit Verdict")
+    lines.append("- The package is internally consistent: the table gaps equal the reported NRE differences, sample rates are ordered correctly, and plot values match the CSV tables.")
+    lines.append("- The results are scientifically usable, but they do **not** support a blanket \"TT is better\" claim.")
+    lines.append("- Foreman is still a negative result after the dense-TT high-budget update: TT improves but remains worse than both the paper OFTD reference and the CP baseline at every sample rate.")
+    lines.append("- Condition is a positive TT-vs-paper-reference result: TT slightly beats the paper OFTD values at every sample rate, but the local CP baseline is still lower.")
+    lines.append("- Runtime cells for Paper OFTD are intentionally blank because the package imports paper reference NRE values only, not a same-machine runtime rerun.")
+    lines.append("")
     lines.append("## Included Tables")
     lines.append("- `table_multi_foreman_sr.csv`")
     lines.append("- `table_single_condition_sr.csv`")
     lines.append("- `table_foreman_tt_rank_sensitivity.csv`")
+    lines.append("- `table_foreman_rank_sensitivity_cp_tt_sr03.csv`")
+    lines.append("- `table_foreman_rank_sensitivity_best_by_model_sr03.csv`")
+    lines.append("- `table_foreman_rank_sensitivity_raw_cp_tt_sr03.csv`")
     lines.append("- `table_condition_tt_rank_sensitivity_sr03.csv`")
+    if foreman_highbudget_path.exists():
+        lines.append("- `table_foreman_tt_r20_online1000_by_sr.csv`")
     lines.append("- `benchmark_paper_cp_tt.csv`")
     lines.append("")
     lines.append("## Included Plots")
@@ -359,6 +399,10 @@ def main():
     lines.append("- `foreman_update_time_vs_sr_cp_tt.png`")
     lines.append("- `condition_update_time_vs_sr_cp_tt.png`")
     lines.append("- `foreman_tt_rank_sensitivity_sr03.png`")
+    lines.append("- `foreman_rank_sensitivity_cp_tt_sr03_nre.png`")
+    lines.append("- `foreman_rank_sensitivity_cp_tt_sr03_params.png`")
+    lines.append("- `foreman_rank_sensitivity_cp_tt_sr03_update_time.png`")
+    lines.append("- `foreman_rank_sensitivity_cp_tt_sr03_params_vs_nre.png`")
     lines.append("- `condition_tt_rank_sensitivity_sr03.png`")
     lines.append("- `foreman_tt_params_vs_nre_sr03.png`")
     lines.append("- `condition_tt_params_vs_nre_sr03.png`")
@@ -377,8 +421,16 @@ def main():
         f"CP={c_row['cp_final_test_nre']:.3f}, TT={c_row['tt_final_test_nre']:.3f}"
     )
     lines.append("")
+    lines.append("## Paper-Use Guidance")
+    lines.append("- Legitimate claim: \"The TT formulation is competitive on the single-aspect Condition stream and slightly improves over the paper OFTD reference in final NRE.\"")
+    lines.append("- Legitimate limitation: \"The current TT implementation underperforms on the multi-aspect Foreman stream, suggesting dataset-regime sensitivity and a need for additional optimization.\"")
+    lines.append("- Rank-sensitivity claim: \"On Foreman SR=0.3, dense TT is better than CP at very low ranks (`R=5,10`), but CP improves steadily with larger `R` while dense TT plateaus.\"")
+    lines.append("- Avoid claiming that TT/OFTD is uniformly superior across all tested streams from this package.")
+    lines.append("")
     lines.append("## Notes")
-    lines.append("- Foreman TT uses best-R per SR from `R in {20,40,60,80,100}` and 3 seeds.")
+    lines.append(f"- Foreman TT final comparison uses {foreman_profile_note}")
+    lines.append("- Foreman TT rank-sensitivity plots/tables use the original paper-budget rank sweep.")
+    lines.append("- Foreman CP-vs-TT rank-sensitivity plots use `R in {5,10,20,40,60,80,100}`, SR=0.3, 3 seeds, `init_iters=4000`, and `online_iters=500`.")
     lines.append("- Condition TT uses fixed `R=80`, seed 42 across SR values.")
     lines.append("- Average online update time is explicitly reported in tables.")
 

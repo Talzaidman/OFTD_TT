@@ -2,11 +2,15 @@ import argparse
 import math
 import random
 import time
-import torch
 import numpy as np
-from torch import optim
+import torch
 from utils import *
-from model import Online_FTD_net, online_update_multi_ftd, check_ftd_theory_alignment
+from model import (
+    Online_FTD_net,
+    check_ftd_theory_alignment,
+    make_ftd_optimizer,
+    online_update_multi_ftd,
+)
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -83,7 +87,14 @@ def run_experiment(args):
     A_input = make_coords(A_t)
     B_input = make_coords(B_t)
     C_input = make_coords(C_t)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = make_ftd_optimizer(
+        model,
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+        lr_a_mult=args.lr_a_mult,
+        lr_b_mult=args.lr_b_mult,
+        lr_c_mult=args.lr_c_mult,
+    )
 
     best_nre_val = float("inf")
     best_state = None
@@ -93,6 +104,8 @@ def run_experiment(args):
         X_Out_real = model(A_input, B_input, C_input)
         loss = ((X_Out_real * mask_t_train - X_t * mask_t_train) ** 2).sum()
         loss.backward()
+        if args.init_clip_grad_norm > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=args.init_clip_grad_norm)
         optimizer.step()
 
         with torch.no_grad():
@@ -136,8 +149,9 @@ def run_experiment(args):
 
     A_T, B_T, C_T = X_train.shape
     max_update_num = max_update(A_T, B_T, C_T, A_ini, B_ini, C_ini, A_delta, B_delta, C_delta)
+    online_optimizer = None
     for step in range(max_update_num):
-        model, A_t, B_t, C_t, time_cost, nre_train, nre_test, boundary_rel = online_update_multi_ftd(
+        update_result = online_update_multi_ftd(
             alpha_beta,
             model,
             X_train,
@@ -162,7 +176,17 @@ def run_experiment(args):
             coord_mode=args.coord_mode,
             loss_scope=args.loss_scope,
             profile_flops=args.profile_flops,
+            lr_a_mult=args.lr_a_mult,
+            lr_b_mult=args.lr_b_mult,
+            lr_c_mult=args.lr_c_mult,
+            clip_grad_norm=args.clip_grad_norm,
+            optimizer=online_optimizer,
+            return_optimizer=args.reuse_online_optimizer,
         )
+        if args.reuse_online_optimizer:
+            model, A_t, B_t, C_t, time_cost, nre_train, nre_test, boundary_rel, online_optimizer = update_result
+        else:
+            model, A_t, B_t, C_t, time_cost, nre_train, nre_test, boundary_rel = update_result
         nres_train.append(nre_train)
         nres_test.append(nre_test)
         if math.isfinite(boundary_rel):
@@ -218,6 +242,9 @@ if __name__ == "__main__":
     parser.add_argument("--beta", type=float, default=1.2)
     parser.add_argument("--divide", type=int, default=3)
     parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr-a-mult", type=float, default=1.0)
+    parser.add_argument("--lr-b-mult", type=float, default=1.0)
+    parser.add_argument("--lr-c-mult", type=float, default=1.0)
     parser.add_argument("--weight-decay", type=float, default=1e-8)
     parser.add_argument("--boundary-lambda", type=float, default=1e-3)
     parser.add_argument("--deriv-lambda", type=float, default=0.0)
@@ -229,6 +256,9 @@ if __name__ == "__main__":
     parser.add_argument("--online-iters", type=int, default=500)
     parser.add_argument("--patience", type=int, default=10)
     parser.add_argument("--profile-flops", action="store_true")
+    parser.add_argument("--clip-grad-norm", type=float, default=1.0)
+    parser.add_argument("--init-clip-grad-norm", type=float, default=0.0)
+    parser.add_argument("--reuse-online-optimizer", action="store_true")
     parser.add_argument("--quick", action="store_true")
     args = parser.parse_args()
 

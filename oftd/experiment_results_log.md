@@ -3,6 +3,19 @@
 Last updated: April 19, 2026  
 Environment: Windows, CPU-only, PyTorch in local `.venv`
 
+## Supersession Note (April 29, 2026)
+
+The high-budget package and follow-up Foreman failure analysis supersede the paper-use guidance in this older log:
+
+- `paper_experiment_package/EXPERIMENT_AUDIT.md`
+- `TT_FOREMAN_FAILURE_ANALYSIS.md`
+
+Updated interpretation:
+
+- Foreman multi-aspect is **not** current positive TT evidence; dense TT underperforms CP and the paper OFTD reference.
+- Condition single-aspect is the current positive TT-vs-paper-reference result, although the local CP baseline remains lower.
+- The Foreman gap should be treated as an optimization/parameterization problem, not as a theoretical TT performance ceiling.
+
 ## A. Baseline Demos (Existing Pipeline)
 
 ### 1. `OFTD_single_demo.py` (`data/condition.mat`)
@@ -73,5 +86,5 @@ python OFTD_FTD_demo.py --data data/condition.mat --streaming-mode single --sing
 
 ## E. Paper-Use Guidance
 
-- Use FTD `foreman` results as current positive evidence.
-- Do not claim FTD superiority on `condition` yet; treat as a failure case/limitation until single-aspect FTD is redesigned or stabilized.
+- Superseded by the April 29 audit and Foreman failure analysis.
+- Do not use this older guidance for the paper experiments section.
