@@ -1,0 +1,3 @@
+model,target_nre,target_status,first_R_at_target,first_params_at_target,nre_at_target_hit,best_R,best_params,best_final_test_nre
+CP,0.01,not reached,,,,250,114030.0,0.012732
+Dense TT,0.01,reached,15,50175.0,0.008225,30,141120.0,0.007468

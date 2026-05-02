@@ -1,4 +1,0 @@
-dataset,mode,seed,R,params,init_time_s,online_time_s,total_train_time_s,infer_time_s,avg_online_nre_train,avg_online_nre_test,final_train_nre,final_test_nre,init_loss_best,final_train_loss,final_test_loss,avg_flops_m,num_updates,final_shape
-condition.mat,single,42,40,234000,0.0683,761.0608,761.1291,0.000791,0.097404,0.104809,0.064952,0.08838,50091.574847,5.176667,9.527092,nan,2618,"(9,2,2623)"
-condition.mat,single,42,80,863520,0.1783,1839.8581,1840.0364,0.000917,0.101336,0.109005,0.070305,0.087814,53500.219525,6.065154,9.405486,nan,2618,"(9,2,2623)"
-condition.mat,single,42,100,1333080,1.3941,2841.194,2842.5881,0.001049,0.112009,0.118923,0.07004,0.095204,3336.705622,6.019471,11.055148,nan,2618,"(9,2,2623)"

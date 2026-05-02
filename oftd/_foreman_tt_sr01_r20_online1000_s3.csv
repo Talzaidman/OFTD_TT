@@ -1,4 +1,0 @@
-dataset,mode,seed,R,params,init_time_s,online_time_s,total_train_time_s,infer_time_s,avg_online_nre_train,avg_online_nre_test,final_train_nre,final_test_nre,init_loss_best,final_train_loss,final_test_loss,avg_flops_m,num_updates,final_shape,dA_l1_max,dB_l1_max,dC_l1_max
-foreman.mat,multi,42,20,74040,0.341,32.5859,32.9269,0.000805,0.130279,0.131921,0.136183,0.136586,6.433256,0.009043,0.009083,nan,9,"(140,170,100)",1.748939,37.339077,0.03696
-foreman.mat,multi,7,20,74040,0.2864,32.4242,32.7106,0.00054,0.130063,0.132093,0.134136,0.134847,4.746481,0.008772,0.008854,nan,9,"(140,170,100)",1.817288,28.838341,0.068388
-foreman.mat,multi,123,20,74040,0.1266,33.6241,33.7507,0.000528,0.127904,0.130058,0.12714,0.128913,10.902981,0.007879,0.008102,nan,9,"(140,170,100)",1.341986,37.756416,0.071376

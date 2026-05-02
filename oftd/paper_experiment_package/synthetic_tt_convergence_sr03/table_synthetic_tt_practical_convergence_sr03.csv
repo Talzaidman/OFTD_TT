@@ -1,0 +1,3 @@
+model,best_R,best_params,best_final_test_nre,earliest_R_within_abs_tol,earliest_params_within_abs_tol,nre_at_abs_hit,earliest_R_within_rel_tol,earliest_params_within_rel_tol,nre_at_rel_hit
+CP,250,114030.0,0.012732,5,19215.0,0.017207,15,23085.0,0.013283
+Dense TT,30,141120.0,0.007468,5,21795.0,0.013037,30,141120.0,0.007468

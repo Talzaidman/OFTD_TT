@@ -5,7 +5,11 @@ import torch
 import numpy as np
 from torch import nn
 from torch import optim
-from thop import profile
+try:
+    from thop import profile
+except ImportError:
+    def profile(*args, **kwargs):
+        return float("nan"), float("nan")
 from utils import *
 from affine import *
 dtype = torch.float32
