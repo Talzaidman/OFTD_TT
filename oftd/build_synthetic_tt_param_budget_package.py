@@ -477,7 +477,7 @@ def aggregate_and_plot(raw_path: Path, out_dir: Path, target_nre: float):
                 (row["actual_params"], row["avg_update_time_s"]),
                 fontsize=8,
             )
-    ax.set_title("Synthetic TT SR=0.3: Online Update Time vs Params")
+    ax.set_title("TT SR=0.3: Online Update Time vs Params")
     ax.set_xlabel("Actual trainable parameters")
     ax.set_ylabel("Average online update time (s)")
     ax.grid(alpha=0.3)
