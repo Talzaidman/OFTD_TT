@@ -325,6 +325,60 @@ def aggregate_and_plot(raw_path: Path, out_dir: Path, target_nre: float):
     fig.savefig(envelope_plot_path, dpi=170)
     plt.close(fig)
 
+    fig, ax = plt.subplots(figsize=(7.4, 4.8))
+    for model, sub in table.groupby("model"):
+        sub = sub.sort_values("actual_params")
+        ax.plot(
+            sub["actual_params"],
+            sub["total_train_time_s"],
+            marker="o",
+            linewidth=2,
+            label=model,
+            color=colors.get(model),
+        )
+        for _, row in sub.iterrows():
+            ax.annotate(
+                f"R={int(row['R'])}",
+                (row["actual_params"], row["total_train_time_s"]),
+                fontsize=8,
+            )
+    ax.set_title("Synthetic TT SR=0.3: Total Training Time vs Params")
+    ax.set_xlabel("Actual trainable parameters")
+    ax.set_ylabel("Total training time (s)")
+    ax.grid(alpha=0.3)
+    ax.legend()
+    fig.tight_layout()
+    train_time_plot_path = out_dir / "synthetic_tt_actual_params_vs_train_time_sr03.png"
+    fig.savefig(train_time_plot_path, dpi=170)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(7.4, 4.8))
+    for model, sub in table.groupby("model"):
+        sub = sub.sort_values("actual_params")
+        ax.plot(
+            sub["actual_params"],
+            sub["avg_update_time_s"],
+            marker="o",
+            linewidth=2,
+            label=model,
+            color=colors.get(model),
+        )
+        for _, row in sub.iterrows():
+            ax.annotate(
+                f"R={int(row['R'])}",
+                (row["actual_params"], row["avg_update_time_s"]),
+                fontsize=8,
+            )
+    ax.set_title("Synthetic TT SR=0.3: Online Update Time vs Params")
+    ax.set_xlabel("Actual trainable parameters")
+    ax.set_ylabel("Average online update time (s)")
+    ax.grid(alpha=0.3)
+    ax.legend()
+    fig.tight_layout()
+    update_time_plot_path = out_dir / "synthetic_tt_actual_params_vs_update_time_sr03.png"
+    fig.savefig(update_time_plot_path, dpi=170)
+    plt.close(fig)
+
     report = [
         "# Synthetic TT Parameter-Budget Matched Sweep",
         "",
@@ -367,6 +421,8 @@ def aggregate_and_plot(raw_path: Path, out_dir: Path, target_nre: float):
     print(f"Saved: {plot_path}")
     print(f"Saved: {actual_plot_path}")
     print(f"Saved: {envelope_plot_path}")
+    print(f"Saved: {train_time_plot_path}")
+    print(f"Saved: {update_time_plot_path}")
     print(f"Saved: {report_path}")
 
 

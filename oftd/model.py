@@ -196,6 +196,9 @@ def make_ftd_optimizer(
 class Online_CP_multi_net(nn.Module): 
     def __init__(self,R1=100,R2=100,R3=100,mid_channel=256,omega_A=1.5,omega_B=1.5,omega_C=1.5):
         super(Online_CP_multi_net, self).__init__()
+        if not (R1 == R2 == R3):
+            raise ValueError("Online_CP_multi_net expects equal CP rank across modes (R1 == R2 == R3).")
+        self.rank = R1
 
         self.A_net = nn.Sequential(SineLayer(1, mid_channel, is_first=True, omega_0 = omega_A),
                                 nn.Linear(mid_channel, R1))
@@ -206,24 +209,13 @@ class Online_CP_multi_net(nn.Module):
         self.C_net = nn.Sequential(SineLayer(1, mid_channel, is_first=True, omega_0 = omega_C),
                                 SineLayer(mid_channel, mid_channel, is_first=True, omega_0 = omega_C),
                                 nn.Linear(mid_channel, R3))
-        self.core = nn.Parameter(torch.Tensor(R1,R2,R3))
-        size = self.core.size(0)
-        self.core = nn.Parameter(torch.zeros(size, size, size), requires_grad=False)
-        for i in range(size):
-            self.core[i, i, i] = 1
         
     def forward(self, A_input, B_input, C_input):
         A = self.A_net(A_input)
         B = self.B_net(B_input)
         C = self.C_net(C_input)
-        
-        centre = self.core.permute(1,2,0)
-        centre = centre @ A.t()
-        centre = centre.permute(2,1,0)
-        centre = centre @ B.t()
-        centre = centre.permute(0,2,1)
-        centre = centre @ C.t()
-        return centre
+        # Direct CP reconstruction: X[i,j,k] = sum_r A[i,r] * B[j,r] * C[k,r]
+        return torch.einsum("ir,jr,kr->ijk", A, B, C)
 
 
 def online_update_single_affine(aa, model, X_train, X_test, mask_train, 
