@@ -6,6 +6,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from build_synthetic_tt_convergence_package import (
@@ -175,6 +176,113 @@ def run_sweep(args):
     return raw_path
 
 
+def plot_replay_sampling_distribution(out_dir: Path, args):
+    shape = tuple(parse_int_list(args.shape))
+    a_total, b_total, c_total = shape
+    init_ratio = args.init_ratio
+    a_t = max(1, math.floor(init_ratio * a_total))
+    b_t = max(1, math.floor(init_ratio * b_total))
+    c_t = max(1, math.floor(init_ratio * c_total))
+    a_delta = max(1, math.floor(init_ratio * a_total))
+    b_delta = max(1, math.floor(init_ratio * b_total))
+    c_delta = max(1, math.floor(init_ratio * c_total))
+
+    update_rows = []
+    replay_positions = []
+    new_positions = []
+    rng = np.random.default_rng(args.data_seed)
+    update_idx = 0
+    while a_t < a_total or b_t < b_total or c_t < c_total:
+        update_idx += 1
+        a_t = min(a_t + a_delta, a_total)
+        b_t = min(b_t + b_delta, b_total)
+        c_t = min(c_t + c_delta, c_total)
+        dims = [
+            ("A", a_t, a_delta),
+            ("B", b_t, b_delta),
+            ("C", c_t, c_delta),
+        ]
+        replay_count = 0
+        new_count = 0
+        for _, size, delta in dims:
+            if size <= 1:
+                continue
+            per_iter_replay = size // args.divide
+            per_iter_new = min(delta, size)
+            replay_count += per_iter_replay
+            new_count += per_iter_new
+            for _ in range(args.online_iters):
+                replay_idx = np.floor(
+                    rng.beta(args.alpha, args.beta, size=per_iter_replay) * (size - 1)
+                ).astype(int)
+                new_idx = np.arange(max(size - delta, 0), size)
+                replay_positions.extend((replay_idx / (size - 1)).tolist())
+                new_positions.extend((new_idx / (size - 1)).tolist())
+        update_rows.append(
+            {
+                "update": update_idx,
+                "replay_count_per_iter": replay_count,
+                "new_count_per_iter": new_count,
+            }
+        )
+
+    schedule = pd.DataFrame(update_rows)
+    fig, axes = plt.subplots(1, 2, figsize=(11.2, 4.6))
+
+    axes[0].hist(
+        replay_positions,
+        bins=np.linspace(0.0, 1.0, 31),
+        density=True,
+        alpha=0.72,
+        label="Replay samples",
+        color="tab:blue",
+    )
+    axes[0].hist(
+        new_positions,
+        bins=np.linspace(0.0, 1.0, 31),
+        density=True,
+        alpha=0.55,
+        label="Newest block",
+        color="tab:red",
+    )
+    axes[0].set_title("Replay Index Distribution")
+    axes[0].set_xlabel("Normalized active-axis position")
+    axes[0].set_ylabel("Density")
+    axes[0].grid(alpha=0.3)
+    axes[0].legend()
+
+    axes[1].bar(
+        schedule["update"],
+        schedule["replay_count_per_iter"],
+        label="Replay coordinates",
+        color="tab:blue",
+        alpha=0.75,
+    )
+    axes[1].bar(
+        schedule["update"],
+        schedule["new_count_per_iter"],
+        bottom=schedule["replay_count_per_iter"],
+        label="Newest coordinates",
+        color="tab:red",
+        alpha=0.62,
+    )
+    axes[1].set_title("Loss Subset Per Online Iteration")
+    axes[1].set_xlabel("Online update number")
+    axes[1].set_ylabel("Selected coordinates across A/B/C")
+    axes[1].grid(alpha=0.3, axis="y")
+    axes[1].legend()
+
+    fig.suptitle(
+        f"Synthetic TT SR=0.3 Replay Sampler: Beta({args.alpha:g}, {args.beta:g}), divide={args.divide}",
+        y=1.02,
+    )
+    fig.tight_layout()
+    plot_path = out_dir / "synthetic_tt_replay_sampling_distribution_sr03.png"
+    fig.savefig(plot_path, dpi=170, bbox_inches="tight")
+    plt.close(fig)
+    return plot_path
+
+
 def aggregate_and_plot(raw_path: Path, out_dir: Path, target_nre: float):
     raw = pd.read_csv(raw_path)
     raw["avg_update_time_s"] = raw["online_time_s"] / raw["num_updates"].clip(lower=1)
@@ -315,13 +423,13 @@ def aggregate_and_plot(raw_path: Path, out_dir: Path, target_nre: float):
                 fontsize=8,
             )
     ax.axhline(target_nre, color="tab:blue", linestyle="--", linewidth=1.5, label=f"NRE target {target_nre:g}")
-    ax.set_title("Synthetic TT SR=0.3: Best-So-Far NRE")
+    ax.set_title("SR=0.3: Parameter-Budget NRE Envelope")
     ax.set_xlabel("Target trainable-parameter budget")
-    ax.set_ylabel("Best final test NRE so far")
+    ax.set_ylabel("Minimum final test NRE up to this budget")
     ax.grid(alpha=0.3)
     ax.legend()
     fig.tight_layout()
-    envelope_plot_path = out_dir / "synthetic_tt_param_budget_best_so_far_sr03.png"
+    envelope_plot_path = out_dir / "param_budget_nre_envelope_sr03.png"
     fig.savefig(envelope_plot_path, dpi=170)
     plt.close(fig)
 
@@ -468,6 +576,8 @@ def main():
     if args.models != "plot-only":
         raw_path = run_sweep(args)
     aggregate_and_plot(raw_path, out_dir, args.target_nre)
+    replay_plot_path = plot_replay_sampling_distribution(out_dir, args)
+    print(f"Saved: {replay_plot_path}")
 
 
 if __name__ == "__main__":
